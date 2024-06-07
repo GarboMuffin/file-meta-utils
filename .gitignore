@@ -1,6 +1,2 @@
 node_modules
 .DS_Store
-
-# remove these when we start writing tests
-*.jpg
-*.png
