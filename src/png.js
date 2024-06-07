@@ -176,7 +176,88 @@ const encodePng = (png) => {
     return result;
 };
 
+/**
+ * @param {Png} png
+ * @param {string} key Assumed to be Latin-1
+ * @returns {PngChunk|null}
+ */
+const findTextSection = (png, key) => {
+    for (const chunk of png.chunks) {
+        if (chunk.type !== 'tEXt') {
+            continue;
+        }
+
+        let matches = true;
+        for (var i = 0; i < key.length; i++) {
+            if (chunk.data[i] !== key.charCodeAt(i)) {
+                matches = false;
+                break;
+            }
+        }
+
+        // Need null terminator
+        if (matches && chunk.data[i] === 0) {
+            return chunk;
+        }
+    }
+
+    return null;
+};
+
+/**
+ * @param {Png} png
+ * @param {string} key Assumed to be Latin-1
+ * @returns {string|null}
+ */
+const getText = (png, key) => {
+    const section = findTextSection(png, key);
+    if (!section) {
+        return null;
+    }
+
+    let i = 0;
+    for (; i < section.data.length && section.data[i] !== 0; i++);
+
+    // Skip null
+    i++;
+
+    let string = '';
+    for (; i < section.data.length; i++) {
+        string += String.fromCharCode(section.data[i]);
+    }
+    return string;
+};
+
+/**
+ * @param {Png} png
+ * @param {string} key Assumed to be Latin-1
+ * @param {string} value Assumed to be Latin-1
+ */
+const setText = (png, key, value) => {
+    const encoded = new Uint8Array(key.length + value.length + 1);
+    for (let i = 0; i < key.length; i++) {
+        encoded[i] = key.charCodeAt(i);
+    }
+
+    for (let i = 0; i < value.length; i++) {
+        encoded[key.length + 1 + i] = value.charCodeAt(i);
+    }
+
+    let chunk = findTextSection(png, key);
+    if (chunk) {
+        chunk.data = encoded;
+    } else {
+        chunk = {
+            type: 'tEXt',
+            data: encoded
+        };
+        png.chunks.splice(1, 0, chunk);
+    }
+};
+
 module.exports = {
     decodePng,
-    encodePng
+    encodePng,
+    getText,
+    setText
 };
