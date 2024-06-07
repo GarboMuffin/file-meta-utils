@@ -14,7 +14,7 @@ test.test('decode and encode', t => {
 test.test('read no EXIF', t => {
     const dangocat = fs.readFileSync(path.join(__dirname, 'dangocat.jpg'));
     const jpg = FMU.jpg.decodeJpg(dangocat);
-    const exif = FMU.exif.decodeJpgExif(jpg);
+    const exif = FMU.jpg.getJpgExif(jpg);
     assert.deepEqual(exif, {});
 });
 
@@ -22,26 +22,26 @@ test.test('update EXIF', t => {
     const dangocat = fs.readFileSync(path.join(__dirname, 'dangocat.jpg'));
     const jpg = FMU.jpg.decodeJpg(dangocat);
 
-    FMU.exif.updateJpgExif(jpg, {});
-    assert.deepEqual(FMU.exif.decodeJpgExif(jpg), {});
+    FMU.jpg.setJpgExif(jpg, {});
+    assert.deepEqual(FMU.jpg.getJpgExif(jpg), {});
 
-    FMU.exif.updateJpgExif(jpg, {
+    FMU.jpg.setJpgExif(jpg, {
         UserComment: 'Test 123!'
     });
-    assert.deepEqual(FMU.exif.decodeJpgExif(jpg), {
+    assert.deepEqual(FMU.jpg.getJpgExif(jpg), {
         UserComment: 'Test 123!'
     });
 
-    FMU.exif.updateJpgExif(jpg, {
+    FMU.jpg.setJpgExif(jpg, {
         UserComment: 'Test 1234!'
     });
-    assert.deepEqual(FMU.exif.decodeJpgExif(jpg), {
+    assert.deepEqual(FMU.jpg.getJpgExif(jpg), {
         UserComment: 'Test 1234!'
     });
 
     const reencoded = FMU.jpg.encodeJpg(jpg);
     const redecoded = FMU.jpg.decodeJpg(reencoded);
-    assert.deepEqual(FMU.exif.decodeJpgExif(redecoded), {
+    assert.deepEqual(FMU.jpg.getJpgExif(redecoded), {
         UserComment: 'Test 1234!'
     });
 });

@@ -130,7 +130,7 @@ const encodeExif = (exif) => {
         });
     }
 
-    return tiff.encodeTiff({
+    const encodedTiff = tiff.encodeTiff({
         littleEndian: true,
         ifds: [
             {
@@ -144,37 +144,6 @@ const encodeExif = (exif) => {
             }
         ]
     });
-};
-
-/**
- * @param {import("./jpg").Jpg} jpg
- * @returns {Exif}
- */
-const decodeJpgExif = (jpg) => {
-    const segment = jpg.segments.find(i => i.type === 0xE1);
-    if (!segment) {
-        return {};
-    }
-    return decodeExif(segment.data);
-};
-
-/**
- * @param {import("./jpg").Jpg} jpg Modified in-place.
- * @param {Exif} exif
- * @returns {void}
- */
-const updateJpgExif = (jpg, exif) => {
-    let segment = jpg.segments.find(i => i.type === 0xE1);
-
-    if (!segment) {
-        segment = {
-            type: 0xE1,
-            data: new Uint8Array(),
-        };
-        jpg.segments.splice(1, 0, segment);
-    }
-
-    const encodedTiff = encodeExif(exif);
 
     const exifSize = encodedTiff.byteLength + 8; // Size, 'Exif', 2 null bytes
     const exifData = new Uint8Array(exifSize);
@@ -189,13 +158,10 @@ const updateJpgExif = (jpg, exif) => {
     exifData[7] = 0x00;
     exifData.set(encodedTiff, 8);
 
-    segment.data = exifData;
+    return exifData;
 };
 
 module.exports = {
     decodeExif,
-    encodeExif,
-
-    decodeJpgExif,
-    updateJpgExif
+    encodeExif
 };

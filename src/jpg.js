@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 const utils = require('./utils');
+const exif = require('./exif');
 
 // Reference material:
 // https://en.wikipedia.org/wiki/JPEG#Syntax_and_structure
@@ -163,7 +164,40 @@ const encodeJpg = (jpg) => {
     return result;
 };
 
+/**
+ * @param {Jpg} jpg
+ * @returns {import('./exif').Exif}
+ */
+const getJpgExif = (jpg) => {
+    const segment = jpg.segments.find(i => i.type === 0xE1);
+    if (!segment) {
+        return {};
+    }
+    return exif.decodeExif(segment.data);
+};
+
+/**
+ * @param {Jpg} jpg Modified in-place.
+ * @param {import("./exif").Exif} newExif
+ * @returns {void}
+ */
+const setJpgExif = (jpg, newExif) => {
+    let segment = jpg.segments.find(i => i.type === 0xE1);
+
+    if (!segment) {
+        segment = {
+            type: 0xE1,
+            data: new Uint8Array(),
+        };
+        jpg.segments.splice(1, 0, segment);
+    }
+
+    segment.data = exif.encodeExif(newExif);
+};
+
 module.exports = {
     decodeJpg,
-    encodeJpg
+    encodeJpg,
+    getJpgExif,
+    setJpgExif
 };
