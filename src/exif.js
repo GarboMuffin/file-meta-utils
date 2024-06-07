@@ -10,12 +10,12 @@ const tiff = require('./tiff');
 // https://www.media.mit.edu/pia/Research/deepview/exif.html
 
 /**
- * @typedef Exif
+ * @typedef {import('./tiff').Ifd} Exif
  */
 
 /**
  * @param {Uint8Array} data
- * @returns {Exif}
+ * @returns {Exif|null}
  */
 const decodeExif = (data) => {
     const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
@@ -44,16 +44,22 @@ const decodeExif = (data) => {
         ptr += 6;
     };
 
-    const readOuterTiff = () => {
-        return tiff.decodeTiff(data.subarray(ptr));
-    };
-
     try {
         checkHeader();
 
-        const tiff = readOuterTiff();
-        const ifd0 = tiff.ifds[0];
-        return ifd0;
+        const tiffData = data.subarray(ptr);
+        const decodedTiff = tiff.decodeTiff(tiffData);
+        const ifd0 = decodedTiff.ifds[0];
+        if (!ifd0) return null;
+
+        const exifIfdEntry = ifd0.entries.find(i => i.tag === 0x8769);
+        if (!exifIfdEntry) return null;
+
+        const exifIfdOffset = exifIfdEntry.value[0];
+        if (typeof exifIfdOffset !== 'number') return null;
+
+        const exifIfd = tiff.decodeIfd(tiffData, exifIfdOffset, decodedTiff.littleEndian);
+        return exifIfd;
     } catch (e) {
         utils.addErrorTrace(e, data, ptr);
         throw e;
