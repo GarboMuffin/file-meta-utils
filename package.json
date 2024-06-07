@@ -1,0 +1,22 @@
+{
+  "name": "@turbowarp/file-meta-utils",
+  "version": "0.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GarboMuffin/file-meta-utils.git"
+  },
+  "author": "GarboMuffin",
+  "license": "MPL-2.0",
+  "bugs": {
+    "url": "https://github.com/GarboMuffin/file-meta-utils/issues"
+  },
+  "homepage": "https://github.com/GarboMuffin/file-meta-utils#readme"
+}
