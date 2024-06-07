@@ -4,7 +4,7 @@ const jpg = require('./src/jpg');
 const png = require('./src/png');
 const exif = require('./src/exif');
 
-const decodedJpg = jpg.decodeJpg(fs.readFileSync('tests/481x361.jpg'));
+const decodedJpg = jpg.decodeJpg(fs.readFileSync('tests/no-exif.jpg'));
 
 // exif.updateJpgExif(decodedJpg, {
 //     entries: [
@@ -22,7 +22,6 @@ const decodedJpg = jpg.decodeJpg(fs.readFileSync('tests/481x361.jpg'));
 // });
 
 exif.updateJpgExif(decodedJpg, {
-    ExifVersion: "IIII",
     UserComment: "Test test, does this work? 123 123"
 });
 
@@ -30,7 +29,7 @@ const decodedExif = exif.decodeJpgExif(decodedJpg);
 console.log(decodedExif);
 
 const encodedJpg = jpg.encodeJpg(decodedJpg);
-fs.writeFileSync('tests/cat.out.jpg', encodedJpg);
+fs.writeFileSync('tests/out.jpg', encodedJpg);
 
 // const decodedPng = png.decodePng(fs.readFileSync('tests/dice.png'));
 // const encodedPng = png.encodePng(decodedPng);

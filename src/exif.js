@@ -164,9 +164,14 @@ const decodeJpgExif = (jpg) => {
  * @returns {void}
  */
 const updateJpgExif = (jpg, exif) => {
-    const segment = jpg.segments.find(i => i.type === 0xE1);
+    let segment = jpg.segments.find(i => i.type === 0xE1);
+
     if (!segment) {
-        return;
+        segment = {
+            type: 0xE1,
+            data: new Uint8Array(),
+        };
+        jpg.segments.splice(1, 0, segment);
     }
 
     const encodedTiff = encodeExif(exif);
