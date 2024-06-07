@@ -66,32 +66,33 @@ const computeCrc32 = (data) => {
 
 /**
  * @param {Uint8Array} data
+ * @returns {boolean}
+ */
+const isPng = (data) => {
+    return (
+        data.byteLength >= HEADER.length &&
+        data[0] === HEADER[0] &&
+        data[1] === HEADER[1] &&
+        data[2] === HEADER[2] &&
+        data[3] === HEADER[3] &&
+        data[4] === HEADER[4] &&
+        data[5] === HEADER[5] &&
+        data[6] === HEADER[6] &&
+        data[7] === HEADER[7]
+    );
+};
+
+/**
+ * @param {Uint8Array} data
  * @returns {Png}
  */
 const decodePng = (data) => {
+    if (!isPng(data)) {
+        throw new Error('Not a valid PNG');
+    }
+
     const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
-    let ptr = 0;
-
-    const checkHeader = () => {
-        if (data.byteLength < HEADER.length) {
-            throw new Error('Data is too short to fit header');
-        }
-
-        if (
-            data[0] !== HEADER[0] ||
-            data[1] !== HEADER[1] ||
-            data[2] !== HEADER[2] ||
-            data[3] !== HEADER[3] ||
-            data[4] !== HEADER[4] ||
-            data[5] !== HEADER[5] ||
-            data[6] !== HEADER[6] ||
-            data[7] !== HEADER[7]
-        ) {
-            throw new Error('Header mismatch');
-        }
-
-        ptr += 8;
-    };
+    let ptr = 8; // skip header
 
     /**
      * @returns {PngChunk}
@@ -128,8 +129,6 @@ const decodePng = (data) => {
     };
 
     try {
-        checkHeader();
-
         return {
             chunks: parseAllChunks()
         };
@@ -256,6 +255,7 @@ const setText = (png, key, value) => {
 };
 
 module.exports = {
+    isPng,
     decodePng,
     encodePng,
     getText,

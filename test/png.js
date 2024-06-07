@@ -4,6 +4,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 const FMU = require('../index');
 
+test.test('isPng', t => {
+    assert.equal(FMU.png.isPng(fs.readFileSync(path.join(__dirname, 'dangocat.jpg'))), false);
+    assert.equal(FMU.png.isPng(fs.readFileSync(path.join(__dirname, 'dangocat.png'))), true);
+    assert.equal(FMU.png.isPng(fs.readFileSync(path.join(__dirname, 'good_text.png'))), true);
+});
+
 test.test('decode and encode', t => {
     const original = fs.readFileSync(path.join(__dirname, 'dangocat.png'));
     const decoded = FMU.png.decodePng(original);

@@ -4,6 +4,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 const FMU = require('../index');
 
+test.test('isJpg', t => {
+    assert.equal(FMU.jpg.isJpg(fs.readFileSync(path.join(__dirname, 'dangocat.jpg'))), true);
+    assert.equal(FMU.jpg.isJpg(fs.readFileSync(path.join(__dirname, 'dangocat.png'))), false);
+    assert.equal(FMU.jpg.isJpg(fs.readFileSync(path.join(__dirname, 'good_text.png'))), false);
+});
+
 test.test('decode and encode', t => {
     const dangocat = fs.readFileSync(path.join(__dirname, 'dangocat.jpg'));
     const decoded = FMU.jpg.decodeJpg(dangocat);

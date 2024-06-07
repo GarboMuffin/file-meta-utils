@@ -21,9 +21,22 @@ const exif = require('./exif');
 
 /**
  * @param {Uint8Array} data
+ * @returns {boolean}
+ */
+const isJpg = (data) => {
+    // Check for start of image segment
+    return data[0] == 0xFF && data[1] == 0xD8;
+};
+
+/**
+ * @param {Uint8Array} data
  * @returns {Jpg}
  */
 const decodeJpg = (data) => {
+    if (!isJpg(data)) {
+        throw new Error('Not a valid JPG');
+    }
+
     const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
     let ptr = 0;
 
@@ -196,6 +209,7 @@ const setJpgExif = (jpg, newExif) => {
 };
 
 module.exports = {
+    isJpg,
     decodeJpg,
     encodeJpg,
     getJpgExif,
