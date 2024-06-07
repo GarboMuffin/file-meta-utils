@@ -8,6 +8,9 @@ const decodedJpg = jpg.decodeJpg(fs.readFileSync('tests/cat.jpg'));
 const encodedJpg = jpg.encodeJpg(decodedJpg);
 fs.writeFileSync('tests/cat.out.jpg', encodedJpg);
 
-const decodedPng = png.decodePng(fs.readFileSync('tests/dice.png'));
-const encodedPng = png.encodePng(decodedPng);
-fs.writeFileSync('tests/dice.out.png', encodedPng);
+// const decodedPng = png.decodePng(fs.readFileSync('tests/dice.png'));
+// const encodedPng = png.encodePng(decodedPng);
+// fs.writeFileSync('tests/dice.out.png', encodedPng);
+
+const jpgExif = exif.decodeJpgExif(decodedJpg);
+console.log(JSON.stringify(jpgExif, null, 4));

@@ -38,6 +38,12 @@ const addErrorTrace = (error, data, ptr) => {
     }
 };
 
+// Shared instances
+const decoder = new TextDecoder();
+const encoder = new TextEncoder();
+
 module.exports = {
-    addErrorTrace
+    addErrorTrace,
+    decoder,
+    encoder
 };

@@ -71,7 +71,6 @@ const computeCrc32 = (data) => {
 const decodePng = (data) => {
     const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
     let ptr = 0;
-    const decoder = new TextDecoder();
 
     const checkHeader = () => {
         if (data.byteLength < HEADER.length) {
@@ -101,7 +100,7 @@ const decodePng = (data) => {
         const length = view.getUint32(ptr, false);
         ptr += 4;
 
-        const type = decoder.decode(data.subarray(ptr, ptr + 4));
+        const type = utils.decoder.decode(data.subarray(ptr, ptr + 4));
         ptr += 4;
 
         const chunkData = data.subarray(ptr, ptr + length);
@@ -145,8 +144,6 @@ const decodePng = (data) => {
  * @returns {Uint8Array}
  */
 const encodePng = (png) => {
-    const encoder = new TextEncoder();
-
     let resultLength = 8;
     for (const chunk of png.chunks) {
         resultLength += 12 + chunk.data.byteLength;
@@ -165,7 +162,7 @@ const encodePng = (png) => {
 
         const typeAndDataView = result.subarray(ptr, ptr + 4 + chunk.data.length);
 
-        result.set(encoder.encode(chunk.type), ptr);
+        result.set(utils.encoder.encode(chunk.type), ptr);
         ptr += 4;
 
         result.set(chunk.data, ptr);
