@@ -11,7 +11,6 @@ const tiff = require('./tiff');
 
 /**
  * @typedef Exif
- * @property {Uint8Array} [ExifVersion]
  * @property {string} [UserComment]
  */
 
@@ -54,10 +53,6 @@ const decodeExif = (data) => {
      */
     const readExifIfd = (ifd) => {
         for (const entry of ifd.entries) {
-            if (entry.tag === 0x9000 && entry.type === tiff.UNDEFINED8 && entry.value.length === 4) {
-                exif.ExifVersion = utils.decoder.decode(entry.value);
-            }
-
             if (entry.tag === 0x9286 && entry.type === tiff.UNDEFINED8) {
                 // First 8 bytes indicating the encoding.
                 // For our needs it's good enough to just assume unicode.
@@ -112,19 +107,6 @@ const encodeExif = (exif) => {
     const exifIfd = {
         entries: []
     };
-
-    if (utils.hasOwn(exif, 'ExifVersion')) {
-        const encoded = utils.encoder.encode(exif.ExifVersion);
-        if (encoded.byteLength !== 4) {
-            throw new Error('Invalid ExifVersion size');
-        }
-
-        exifIfd.entries.push({
-            tag: 0x9000,
-            type: tiff.UNDEFINED8,
-            value: encoded
-        });
-    }
 
     if (utils.hasOwn(exif, 'UserComment')) {
         // We will assume it is just ASCII
