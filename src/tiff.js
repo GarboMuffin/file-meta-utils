@@ -9,7 +9,7 @@ const utils = require('./utils');
 // https://www.media.mit.edu/pia/Research/deepview/exif.html
 
 /**
- * @typedef {Uint8Array|Int8Array|Uint16Array|Int16Array|Uint32Array|Int32Array|Uint32Array[]|Int32Array[]|Float32Array|Float64Array|string} IfdEntryValue
+ * @typedef {Uint8Array|Int8Array|Uint16Array|Int16Array|Uint32Array|Int32Array|Uint32Array[]|Int32Array[]|Float32Array|Float64Array|string|Ifd} IfdEntryValue
  */
 
 /**
@@ -226,9 +226,6 @@ const decodeIfd = (data, ptr, littleEndian) => {
             entries.push(entry);
         }
 
-        // Last value in the IFD is offset from TIFF start for the next IFD
-        ptr = view.getUint32(ptr, littleEndian);
-
         return entries;
     };
 
@@ -315,14 +312,278 @@ const decodeTiff = (data) => {
 };
 
 /**
+ * @param {IfdEntry} entry
+ * @returns {boolean}
+ */
+const ifdEntryPointsToIfd = (entry) => {
+    return (
+        entry.type === UINT32 &&
+        !!entry.value &&
+        Array.isArray(entry.value.entries)
+    );
+};
+
+/**
+ * @param {Ifd} ifd
+ * @returns {[number, number]}
+ */
+const getEncodedIfdSize = (ifd) => {
+    let front = 6; // IFD entry count, offset of next IFD
+    let back = 0;
+
+    for (const entry of ifd.entries) {
+        front += 12; // Tag, type, count, value/offset
+
+        if (ifdEntryPointsToIfd(entry)) {
+            // If value is an IFD, then the value is the offset of where to find the child IFD.
+            const [childFront, childBack] = getEncodedIfdSize(entry.value);
+
+            // The full child IFD is always stored in the back
+            back += childFront;
+            back += childBack;
+        } else {
+            let dataLength;
+            if (entry.type === ASCII) {
+                // We can assume string is just ASCII.
+                // Also needs a null terminator.
+                dataLength = entry.value.length + 1;
+            } else {
+                dataLength = getTypeSize(entry.type) * entry.value.length;
+            }
+
+            if (dataLength > 4) {
+                // Won't fit inline in the entry, will have to store separately.
+                back += dataLength;
+            }
+        }
+    }
+
+    return [
+        front,
+        back
+    ];
+};
+
+/**
  * @param {Tiff} tiff
  * @returns {Uint8Array}
  */
-const encodeTiff = () => {
+const encodeTiff = (tiff) => {
+    let totalFront = 8; // Byte alignment, tag, offset to first IFD
+    let totalBack = 0;
+    for (const ifd of tiff.ifds) {
+        const [front, back] = getEncodedIfdSize(ifd);
+        totalFront += front;
+        totalBack += back;
+    }
 
+    const result = new Uint8Array(totalFront + totalBack);
+    const view = new DataView(result.buffer, result.byteOffset, result.byteLength);
+
+    let frontPtr = 0;
+    let backPtr = totalFront;
+
+    // Write byte order marker
+    const littleEndian = tiff.littleEndian;
+    if (littleEndian) {
+        result[0] = 0x49;
+        result[1] = 0x49;
+        result[2] = 0x2A;
+        result[3] = 0x00;
+    } else {
+        result[0] = 0x4D;
+        result[1] = 0x4D;
+        result[2] = 0x00;
+        result[3] = 0x2A;
+    }
+    frontPtr += 4;
+
+    // Write offset to first IFD, which will always be right after the header
+    view.setUint32(frontPtr, 8, littleEndian);
+    frontPtr += 4;
+
+    /**
+     * @param {number} dataPtr
+     * @param {number} type See constants
+     * @param {IfdEntryValue} value
+     */
+    const writeEntryValue = (dataPtr, type, value) => {
+        switch (type) {
+            case UINT8:
+            case UNDEFINED8: {
+                for (let i = 0; i < value.length; i++, dataPtr++) {
+                    view.setUint8(dataPtr, value[i]);
+                }
+                break;
+            }
+
+            case ASCII: {
+                for (let i = 0; i < value.length; i++, dataPtr++) {
+                    view.setUint8(dataPtr, value.charCodeAt(i));
+                }
+                // Null terminator
+                view.setUint8(dataPtr, 0);
+                break;
+            }
+
+            case UINT16: {
+                for (let i = 0; i < value.length; i++, dataPtr += 2) {
+                    view.setUint16(dataPtr, value[i], littleEndian);
+                }
+                break;
+            }
+
+            case UINT32: {
+                for (let i = 0; i < value.length; i++, dataPtr += 4) {
+                    view.setUint32(dataPtr, value[i], littleEndian);
+                }
+                break;
+            }
+
+            case URATIONAL: {
+                for (let i = 0; i < value.length; i++, dataPtr += 8) {
+                    view.setUint32(dataPtr, value[i][0], littleEndian);
+                    view.setUint32(dataPtr + 4, value[i][1], littleEndian);
+                }
+                break;
+            }
+
+            case INT8: {
+                for (let i = 0; i < value.length; i++, dataPtr++) {
+                    view.setInt8(dataPtr, value[i]);
+                }
+                break;
+            }
+
+            case INT16: {
+                for (let i = 0; i < value.length; i++, dataPtr += 2) {
+                    view.setInt16(dataPtr, value[i]);
+                }
+                break;
+            }
+
+            case INT32: {
+                for (let i = 0; i < value.length; i++, dataPtr += 4) {
+                    view.setInt32(dataPtr, value[i]);
+                }
+                break;
+            }
+
+            case SRATIONAL: {
+                for (let i = 0; i < value.length; i++, dataPtr += 8) {
+                    view.setInt32(dataPtr, value[i][0], littleEndian);
+                    view.setInt32(dataPtr + 4, value[i][1], littleEndian);
+                }
+                break;
+            }
+
+            case SINGLE: {
+                for (let i = 0; i < value.length; i++, dataPtr += 4) {
+                    view.setFloat32(dataPtr, value[i]);
+                }
+                break;
+            }
+
+            case DOUBLE: {
+                for (let i = 0; i < value.length; i++, dataPtr += 8) {
+                    view.setFloat64(dataPtr, value[i]);
+                }
+                break;
+            }
+
+            default: {
+                throw new Error(`Unknown type: ${type}`);
+            }
+        }
+    };
+
+    /**
+     * @param {Ifd} ifd
+     * @param {number} ptr
+     * @returns {number} Final result of ptr
+     */
+    const writeIfd = (ifd, ptr) => {
+        view.setUint16(ptr, ifd.entries.length, littleEndian);
+        ptr += 2;
+
+        for (const entry of ifd.entries) {
+            view.setUint16(ptr, entry.tag, littleEndian);
+            ptr += 2;
+
+            view.setUint16(ptr, entry.type, littleEndian);
+            ptr += 2;
+
+            if (ifdEntryPointsToIfd(entry)) {
+                /** @type {Ifd} */
+                const childIfd = entry.value;
+
+                const [childFront, childBack] = getEncodedIfdSize(childIfd);
+
+                view.setUint32(ptr, 1, littleEndian);
+                ptr += 4;
+
+                view.setUint32(ptr, backPtr, littleEndian);
+                ptr += 4;
+
+                const initialBackPtr = backPtr;
+                backPtr = initialBackPtr + childFront;
+                writeIfd(childIfd, initialBackPtr);
+                backPtr = initialBackPtr + childFront + childBack;
+            } else {
+                let count = entry.value.length;
+                if (entry.tag === ASCII) {
+                    // Null terminator
+                    count += 1;
+                }
+                view.setUint32(ptr, count, littleEndian);
+                ptr += 4;
+
+                const totalSize = count * getTypeSize(entry.type);
+                let dataPtr;
+                if (totalSize <= 4) {
+                    dataPtr = ptr;
+                } else {
+                    view.setUint32(ptr, backPtr, littleEndian);
+                    dataPtr = backPtr;
+                    backPtr += totalSize;
+                }
+                ptr += 4;
+
+                writeEntryValue(dataPtr, entry.type, entry.value);
+            }
+        }
+
+        return ptr;
+    };
+
+    for (const ifd of tiff.ifds) {
+        frontPtr = writeIfd(ifd, frontPtr);
+
+        // Next IFD offset is immediately after this one
+        view.setUint32(frontPtr, frontPtr + 4, littleEndian);
+        frontPtr += 4;
+    }
+
+    // Last IFD offset is always 0
+    view.setUint32(frontPtr - 4, 0, littleEndian);
+
+    return result;
 };
 
 module.exports = {
+    UINT8,
+    ASCII,
+    UINT16,
+    UINT32,
+    URATIONAL,
+    INT8,
+    UNDEFINED8,
+    INT16,
+    INT32,
+    SRATIONAL,
+    SINGLE,
+    DOUBLE,
+
     decodeTiff,
     decodeIfd,
     encodeTiff

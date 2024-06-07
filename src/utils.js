@@ -42,8 +42,18 @@ const addErrorTrace = (error, data, ptr) => {
 const decoder = new TextDecoder();
 const encoder = new TextEncoder();
 
+/**
+ * Object.hasOwn but it works in more browsers.
+ * @template T
+ * @param {T} obj
+ * @param {keyof T} key
+ * @returns {boolean}
+ */
+const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
+
 module.exports = {
     addErrorTrace,
     decoder,
-    encoder
+    encoder,
+    hasOwn
 };
